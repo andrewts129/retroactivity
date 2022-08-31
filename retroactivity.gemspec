@@ -16,4 +16,8 @@ Gem::Specification.new do |gem|
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|gem|features)/}) }
   end
   gem.require_paths = ["lib"]
+
+  gem.add_dependency "activerecord"
+
+  gem.add_development_dependency "sqlite3"
 end

@@ -1,4 +1,5 @@
-require "retroactivity/version"
+require "active_support/concern"
+require "active_record"
 
-module Retroactivity
-end
+require "retroactivity/retroactive"
+require "retroactivity/version"
