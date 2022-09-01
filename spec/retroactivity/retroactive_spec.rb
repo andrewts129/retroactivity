@@ -18,7 +18,7 @@ RSpec.describe Retroactive do
   let(:instance) { test_klass.create!(:foo => "bar") }
 
   it "logs on saves" do
-    expect { instance.update!(:foo => "baz") }.to change { instance.logged_changes.count }.by(1)
+    expect { instance.update!(:foo => "baz") }.to change { instance.logged_changes.count }.from(1).to(2)
     expect(instance.foo).to eq("baz")
   end
 end
