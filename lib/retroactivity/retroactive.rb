@@ -6,6 +6,10 @@ module Retroactive
 
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
+    def rewind!(as_of)
+      logged_changes.after(as_of).reverse_chronological.each(&:unapply!)
+    end
+
     private
 
     def _log_save
