@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 
 RSpec.describe Retroactivity::LoggedChange do
@@ -9,22 +11,25 @@ RSpec.describe Retroactivity::LoggedChange do
     )
   end
 
+  before do
+    stub_const("TestKlass", loggable_klass)
 
-  before(:all) do 
     ActiveRecord::Base.connection.create_table :test_klasses do |t|
       t.string :foo
       t.integer :bar
     end
   end
 
-  after(:all) { ActiveRecord::Base.connection.drop_table :test_klasses }
+  after { ActiveRecord::Base.connection.drop_table :test_klasses }
 
-  let(:loggable) do
-    class TestKlass < ActiveRecord::Base
+  let(:loggable_klass) do
+    Class.new(ActiveRecord::Base) do
       include Retroactive
     end
+  end
 
-    TestKlass.create!(:foo => "hello", :bar => 6)
+  let(:loggable) do
+    loggable_klass.create!(:foo => "hello", :bar => 6)
   end
 
   describe "#apply!" do

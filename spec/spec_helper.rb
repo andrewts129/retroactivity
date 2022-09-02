@@ -1,10 +1,12 @@
+# frozen_string_literal: true
+
 require "bundler/setup"
 require "timecop"
 require "yaml"
 
 require "retroactivity"
 
-ActiveRecord::Base.establish_connection(YAML::load_file("spec/database.yml"))
+ActiveRecord::Base.establish_connection(YAML.load_file("spec/database.yml"))
 
 unless ActiveRecord::Base.connection.table_exists?("logged_changes")
   require "rake"

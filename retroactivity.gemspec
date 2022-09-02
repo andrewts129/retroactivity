@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative "lib/retroactivity/version"
 
 Gem::Specification.new do |gem|
@@ -12,7 +14,7 @@ Gem::Specification.new do |gem|
 
   gem.required_ruby_version = Gem::Requirement.new(">= 2.7.0")
 
-  gem.files         = Dir.chdir(File.expand_path('..', __FILE__)) do
+  gem.files = Dir.chdir(File.expand_path(__dir__)) do
     `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(test|gem|features)/}) }
   end
   gem.require_paths = ["lib"]

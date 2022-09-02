@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Retroactivity
   class LoggedChange < ActiveRecord::Base
     CannotApplyError = Class.new(StandardError)

@@ -1,19 +1,19 @@
+# frozen_string_literal: true
+
 require "active_record"
 require "bundler/gem_tasks"
 require "fileutils"
 require "rspec/core/rake_task"
 
-
 RSpec::Core::RakeTask.new(:spec)
 
 desc "Generate the migrations for database tables needed by retroactivity"
 task :setup do
-
   migration_directory = File.join(File.dirname(__FILE__), ActiveRecord::Migrator.migrations_paths.first)
   FileUtils.mkdir_p(migration_directory)
 
-  migration_path = File.join(migration_directory, "#{Time.now.strftime("%Y%m%d%H%M%S")}_create_logged_changes.rb")
-  File.write(migration_path, <<~EOF)
+  migration_path = File.join(migration_directory, "#{Time.now.strftime('%Y%m%d%H%M%S')}_create_logged_changes.rb")
+  File.write(migration_path, <<~MIGRATION)
     class CreateLoggedChanges < ActiveRecord::Migration[7.0]
       def change
         create_table :logged_changes do |t|
@@ -23,7 +23,7 @@ task :setup do
         end
       end
     end
-  EOF
+  MIGRATION
 end
 
 task :default => :spec

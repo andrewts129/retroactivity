@@ -1,23 +1,28 @@
+# frozen_string_literal: true
+
 require "spec_helper"
 
 RSpec.describe Retroactive do
   subject(:test_klass) do
-    class TestKlass < ActiveRecord::Base
+    Class.new(ActiveRecord::Base) do
       include Retroactive
     end
   end
 
-  before(:all) do 
+  before do
+    stub_const("TestKlass", test_klass)
+
+    Timecop.travel(Date.new(2022, 1, 1))
     ActiveRecord::Base.connection.create_table :test_klasses do |t|
       t.string :foo
       t.integer :bar
     end
   end
 
-  after(:all) { ActiveRecord::Base.connection.drop_table :test_klasses }
-
-  before { Timecop.travel(Date.new(2022, 1, 1)) }
-  after { Timecop.return }
+  after do
+    ActiveRecord::Base.connection.drop_table :test_klasses
+    Timecop.return
+  end
 
   let(:now) { Time.now }
   let(:instance) { Timecop.freeze(now - 5.days) { test_klass.create!(:foo => "bar") } }
@@ -44,7 +49,7 @@ RSpec.describe Retroactive do
 
         context "when going back to before the object was created" do
           let(:as_of_time) { now - 10.days }
-  
+
           it "sets everything to nil" do
             expect { as_of! }
               .to change { instance.id }.to(nil)
@@ -66,10 +71,10 @@ RSpec.describe Retroactive do
             .to change { instance.foo }.from("bar4").to("bar2")
             .and change { instance.bar }.from(8).to(nil)
         end
-    
+
         context "when going back to before the object was created" do
           let(:as_of_time) { now - 10.days }
-  
+
           it "sets everything to nil" do
             expect { as_of! }
               .to change { instance.id }.to(nil)
