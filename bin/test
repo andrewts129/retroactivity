@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+bundle2.7 exec rspec
+bundle2.7 exec rubocop
