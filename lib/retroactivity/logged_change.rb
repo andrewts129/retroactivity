@@ -2,12 +2,6 @@ module Retroactivity
   class LoggedChange < ActiveRecord::Base
     CannotApplyError = Class.new(StandardError)
 
-    module Operation
-      ALL = [
-        UPDATE = "update".freeze
-      ].freeze
-    end
-
     belongs_to :loggable, :polymorphic => true
 
     scope :between, ->(start, finish) { where("? < as_of AND as_of <= ?", start, finish) }

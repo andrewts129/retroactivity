@@ -4,7 +4,6 @@ RSpec.describe Retroactivity::LoggedChange do
   subject(:logged_change) do
     described_class.create!(
       :loggable => loggable,
-      :operation => described_class::Operation::UPDATE,
       :data => data,
       :as_of => Time.now
     )

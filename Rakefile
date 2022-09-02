@@ -18,7 +18,6 @@ task :setup do
       def change
         create_table :logged_changes do |t|
           t.references :loggable, :polymorphic => true, :null => false
-          t.string :operation, :null => false
           t.json :data, :null => false
           t.datetime :as_of, :null => false
         end

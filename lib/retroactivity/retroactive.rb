@@ -24,7 +24,6 @@ module Retroactive
 
     def _log_save
       logged_changes.create!(
-        :operation => Retroactivity::LoggedChange::Operation::UPDATE,
         :data => saved_changes,
         :as_of => _current_time
       )
