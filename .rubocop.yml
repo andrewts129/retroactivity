@@ -1,0 +1,35 @@
+require:
+  - rubocop-rake
+  - rubocop-rspec
+AllCops:
+  NewCops: disable
+  TargetRubyVersion: 2.7
+Lint/AmbiguousBlockAssociation:
+  Exclude:
+    - spec/**/*.rb
+Lint/ConstantDefinitionInBlock:
+  Exclude:
+    - spec/**/*.rb
+RSpec/ContextWording:
+  Prefixes:
+    - and
+    - but
+    - when
+    - with
+    - without
+RSpec/ExpectChange:
+  EnforcedStyle: block
+RSpec/MultipleExpectations:
+  Enabled: false
+RSpec/NestedGroups:
+  Enabled: false
+Metrics/BlockLength:
+  Enabled: false
+Style/Documentation:
+  Enabled: false
+Style/HashSyntax:
+  EnforcedStyle: hash_rockets
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+Style/WordArray:
+  Enabled: false
