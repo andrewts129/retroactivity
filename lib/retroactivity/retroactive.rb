@@ -3,15 +3,14 @@ module Retroactive
 
   included do
     after_save :_log_save
-    after_initialize { @frozen_at = nil }
 
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
     def as_of!(time)
-      if time < _current_time
-        logged_changes.after(time).reverse_chronological.each(&:unapply!)
+      if time <= _current_time
+        logged_changes.between(time, _current_time).reverse_chronological.each(&:unapply!)
       else
-        raise NotImplementedError
+        logged_changes.between(_current_time, time).chronological.each(&:apply!)
       end
 
       @frozen_at = time
