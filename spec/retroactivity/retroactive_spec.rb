@@ -135,4 +135,102 @@ RSpec.describe Retroactive do
       end
     end
   end
+
+  describe "#as_of" do
+    subject(:instance_as_of) { instance.as_of(as_of_time) }
+
+    shared_examples_for "does not mutate the original instance" do
+      it "does not mutate the original instance" do
+        expect { instance_as_of }.not_to change { instance }
+      end
+    end
+
+    before do
+      Timecop.freeze(now - 4.day) { instance.update!(:foo => "bar2") }
+      Timecop.freeze(now - 2.days) { instance.update!(:foo => "bar3") }
+      Timecop.freeze(now - 1.days) { instance.update!(:foo => "bar4", :bar => 8) }
+    end
+
+    context "when going backward in time" do
+      let(:as_of_time) { now - 3.days }
+
+      it_behaves_like "does not mutate the original instance"
+
+      it "returns a copy of the object as it was at that time" do
+        expect(instance_as_of).to be_a(instance.class)
+        expect(instance_as_of).to have_attributes(
+          :id => instance.id,
+          :foo => "bar2",
+          :bar => nil
+        )
+      end
+
+      context "when the object was already rolled back some" do
+        before { instance.as_of!(now - 1.day) }
+
+        it "still returns a copy of the object as it was at that time" do
+          expect(instance_as_of).to be_a(instance.class)
+          expect(instance_as_of).to have_attributes(
+            :id => instance.id,
+            :foo => "bar2",
+            :bar => nil
+          )
+        end
+      end
+
+      context "when the object has been rolled forward" do
+        before { instance.as_of!(now + 3.days) }
+
+        it "still returns a copy of the object as it was at that time" do
+          expect(instance_as_of).to be_a(instance.class)
+          expect(instance_as_of).to have_attributes(
+            :id => instance.id,
+            :foo => "bar2",
+            :bar => nil
+          )
+        end
+      end
+
+      context "when going to before the object was initialized" do
+        let(:as_of_time) { now - 10.days }
+
+        it "returns an object with all nil values" do
+          expect(instance_as_of).to be_a(instance.class)
+          expect(instance_as_of).to have_attributes(
+            :id => nil,
+            :foo => nil,
+            :bar => nil
+          )
+        end
+      end
+    end
+
+    context "when going forward in time" do
+      let(:as_of_time) { now + 5.days }
+
+      it_behaves_like "does not mutate the original instance"
+
+      context "when the object was already rolled back some" do
+        before { instance.as_of!(now - 1.day) }
+
+        it_behaves_like "does not mutate the original instance"
+
+        it "returns a copy of the object as it is in the present" do
+          expect(instance_as_of).to be_a(instance.class)
+          expect(instance_as_of.attributes).to eq(instance.attributes)
+        end
+      end
+
+      context "when the object was already forward back some" do
+        before { instance.as_of!(now + 1.day) }
+
+        it_behaves_like "does not mutate the original instance"
+
+        it "returns a copy of the object as it is in the present" do
+          expect(instance_as_of).to be_a(instance.class)
+          expect(instance_as_of.attributes).to eq(instance.attributes)
+        end
+      end
+    end
+  end
 end

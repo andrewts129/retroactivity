@@ -18,6 +18,12 @@ module Retroactive
       @frozen_at = time
     end
 
+    def as_of(time)
+      clone.tap do |cloned|
+        cloned.as_of!(time)
+      end
+    end
+
     private
 
     def _current_time
