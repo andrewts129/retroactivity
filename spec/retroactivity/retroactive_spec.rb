@@ -27,11 +27,6 @@ RSpec.describe Retroactive do
   let(:now) { Time.now }
   let(:instance) { Timecop.freeze(now - 5.days) { test_klass.create!(:foo => "bar") } }
 
-  it "logs on saves" do
-    expect { instance.update!(:foo => "baz") }.to change { instance.logged_changes.count }.from(1).to(2)
-    expect(instance.foo).to eq("baz")
-  end
-
   describe "#as_of!" do
     subject(:as_of!) { instance.as_of!(as_of_time) }
 
@@ -230,6 +225,81 @@ RSpec.describe Retroactive do
           expect(instance_as_of).to be_a(instance.class)
           expect(instance_as_of.attributes).to eq(instance.attributes)
         end
+      end
+    end
+  end
+
+  describe "updates" do
+    it "logs on saves" do
+      expect { instance.update!(:foo => "baz") }.to change { instance.logged_changes.count }.from(1).to(2)
+      expect(instance.foo).to eq("baz")
+    end
+
+    context "when the object has been rolled back" do
+      before do
+        Timecop.freeze(now - 4.day) { instance.update!(:foo => "bar2") }
+        Timecop.freeze(now - 2.days) { instance.update!(:foo => "bar3") }
+        Timecop.freeze(now - 1.days) { instance.update!(:bar => 8) }
+      end
+
+      shared_examples_for "makes updates retroactively" do
+        subject(:update!) { rolled_back_instance.update!(:foo => "hello", :bar => 3) }
+
+        let(:as_of_time) { now - 1.day - 5.hours }
+
+        it "updates attributes that are not overriden both at the frozen time and in the present" do
+          expect { update! }
+            .to change { rolled_back_instance.foo }.from("bar3").to("hello")
+
+          expect(TestKlass.find(instance.id).foo).to eq("hello")
+        end
+
+        it "updates attributes that are overriden only at the frozen time and not in the present" do
+          expect { update! }
+            .to change { rolled_back_instance.bar }.from(nil).to(3)
+
+          expect(TestKlass.find(instance.id).bar).to eq(8)
+        end
+      end
+
+      context "with as_of!" do
+        subject(:rolled_back_instance) { instance }
+
+        before { rolled_back_instance.as_of!(as_of_time) }
+
+        it_behaves_like "makes updates retroactively"
+      end
+
+      context "with as_of" do
+        subject(:rolled_back_instance) { instance.as_of(as_of_time) }
+
+        it_behaves_like "makes updates retroactively"
+      end
+    end
+
+    context "when the object has been rolled forward" do
+      subject(:update!) { rolled_forward_instance.update!(:foo => "hello", :bar => 3) }
+
+      let(:as_of_time) { now + 5.days }
+
+      shared_examples_for "realizes it's a future dated update" do
+        it "raises CannotMakeFutureDatedUpdatesError" do
+          expect { update! }.to raise_error(Retroactivity::CannotMakeFutureDatedUpdatesError)
+        end
+      end
+
+      context "with as_of!" do
+        subject(:rolled_forward_instance) { instance }
+
+        before { rolled_forward_instance.as_of!(as_of_time) }
+
+        it_behaves_like "realizes it's a future dated update"
+      end
+
+      context "with as_of" do
+        subject(:rolled_forward_instance) { instance.as_of(as_of_time) }
+
+        it_behaves_like "realizes it's a future dated update"
       end
     end
   end
