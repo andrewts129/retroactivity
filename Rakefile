@@ -14,13 +14,17 @@ task :setup do
 
   migration_path = File.join(migration_directory, "#{Time.now.strftime('%Y%m%d%H%M%S')}_create_logged_changes.rb")
   File.write(migration_path, <<~MIGRATION)
+    # frozen_string_literal: true
+
     class CreateLoggedChanges < ActiveRecord::Migration[7.0]
       def change
         create_table :logged_changes do |t|
-          t.references :loggable, :polymorphic => true, :null => false
+          t.references :loggable, :polymorphic => true, :null => false, :index => false
           t.json :data, :null => false
           t.datetime :as_of, :null => false
         end
+
+        add_index :logged_changes, [:loggable_type, :loggable_id, :as_of], :order => { :as_of => :desc }
       end
     end
   MIGRATION
