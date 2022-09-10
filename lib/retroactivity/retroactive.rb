@@ -9,6 +9,42 @@ module Retroactive
 
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
+    scope :as_of, (lambda do |time|
+      update_hash = {}
+
+      Retroactivity::LoggedChange.for(name).between(time, Time.now).reverse_chronological.each do |logged_change|
+        update_hash[logged_change.loggable_id] ||= {}
+
+        logged_change.unapply_to!(update_hash[logged_change.loggable_id], :skip_validation => true)
+      end
+
+      attribute_overwrites = column_names.to_h { |column_name| [column_name, {}] }
+
+      update_hash.each do |id, updates|
+        updates.each do |attribute, value|
+          attribute_overwrites[attribute][id] = value
+        end
+      end
+
+      select_query = []
+
+      attribute_overwrites.each do |attribute, overwrites|
+        if overwrites.present?
+          select_query << "CASE"
+
+          overwrites.each do |id, value|
+            select_query << " WHEN id = #{_in_sql(id)} THEN #{_in_sql(value)}"
+          end
+
+          select_query << " ELSE #{attribute} END AS #{attribute},"
+        else
+          select_query << "#{attribute},"
+        end
+      end
+
+      from(select(select_query.join.chomp(",")), table_name)
+    end)
+
     def as_of!(time)
       as_of(time).attributes.each do |attr_name, transformed_value|
         self[attr_name] = transformed_value
@@ -18,18 +54,26 @@ module Retroactive
     end
 
     def as_of(time)
-      clone.tap do |cloned|
-        if time <= _current_time
-          logged_changes.between(time, _current_time).reverse_chronological.each { |lc| lc.unapply_to!(cloned) }
-        else
-          logged_changes.between(_current_time, time).chronological.each { |lc| lc.apply_to!(cloned) }
-        end
+      obj = if time <= _current_time
+              self.class.as_of(time).find_by_id(id) || self.class.new
+            else
+              clone.tap do |cloned|
+                logged_changes.between(_current_time, time).chronological.each { |lc| lc.apply_to!(cloned) }
+              end
+            end
 
-        cloned.instance_variable_set(:@frozen_at, time)
-      end
+      obj.instance_variable_set(:@frozen_at, time)
+      obj
     end
 
     private
+
+    def self._in_sql(value)
+      return "NULL" if value.nil?
+      return "'#{value}'" if value.is_a?(String)
+
+      value
+    end
 
     def _current_time
       @frozen_at || Time.now

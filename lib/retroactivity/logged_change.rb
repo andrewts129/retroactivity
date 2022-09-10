@@ -6,6 +6,8 @@ module Retroactivity
 
     belongs_to :loggable, :polymorphic => true
 
+    scope :for, ->(klass) { where(:loggable_type => klass.to_s) }
+
     scope :between, ->(start, finish) { where("? < as_of AND as_of <= ?", start, finish) }
     scope :chronological, -> { order(:as_of => :asc) }
     scope :reverse_chronological, -> { order(:as_of => :desc) }
@@ -20,11 +22,11 @@ module Retroactivity
       end
     end
 
-    def unapply_to!(obj)
+    def unapply_to!(obj, skip_validation: false)
       data.each do |attr, change|
         previous_value, new_value = change
 
-        raise CannotApplyError unless obj[attr] == new_value
+        raise CannotApplyError unless obj[attr] == new_value || skip_validation
 
         obj[attr] = previous_value
       end
