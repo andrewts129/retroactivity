@@ -12,6 +12,8 @@ Lint/AmbiguousBlockAssociation:
 Lint/ConstantDefinitionInBlock:
   Exclude:
     - spec/**/*.rb
+Metrics/AbcSize:
+  Enabled: false
 RSpec/ContextWording:
   Prefixes:
     - and

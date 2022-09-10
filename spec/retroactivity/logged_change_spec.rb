@@ -32,12 +32,14 @@ RSpec.describe Retroactivity::LoggedChange do
     loggable_klass.create!(:foo => "hello", :bar => 6)
   end
 
-  describe "#apply!" do
+  describe "#apply_to!" do
+    subject(:apply_to!) { logged_change.apply_to!(loggable) }
+
     context "when the source value of the change matches the current state of the loggable object" do
       let(:data) { { "foo" => ["hello", "heo"], "bar" => [6, nil] } }
 
       it "applies the attribute changes" do
-        expect { logged_change.apply! }
+        expect { apply_to! }
           .to change { loggable.foo }.from("hello").to("heo")
           .and change { loggable.bar }.from(6).to(nil)
       end
@@ -47,17 +49,19 @@ RSpec.describe Retroactivity::LoggedChange do
       let(:data) { { "foo" => ["hello", "heo"], "bar" => [nil, 6] } }
 
       it "raises an error" do
-        expect { logged_change.apply! }.to raise_error(described_class::CannotApplyError)
+        expect { apply_to! }.to raise_error(described_class::CannotApplyError)
       end
     end
   end
 
-  describe "#unapply!" do
+  describe "#unapply_to!" do
+    subject(:unapply_to!) { logged_change.unapply_to!(loggable) }
+
     context "when the target value of the change matches the current state of the loggable object" do
       let(:data) { { "foo" => ["heo", "hello"], "bar" => [nil, 6] } }
 
       it "rolls back the object's attributes" do
-        expect { logged_change.unapply! }
+        expect { unapply_to! }
           .to change { loggable.foo }.from("hello").to("heo")
           .and change { loggable.bar }.from(6).to(nil)
       end
@@ -67,7 +71,7 @@ RSpec.describe Retroactivity::LoggedChange do
       let(:data) { { "foo" => ["heo", "hello"], "bar" => [nil, 7] } }
 
       it "raises an error" do
-        expect { logged_change.unapply! }.to raise_error(described_class::CannotApplyError)
+        expect { unapply_to! }.to raise_error(described_class::CannotApplyError)
       end
     end
   end

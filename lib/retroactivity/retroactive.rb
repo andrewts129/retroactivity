@@ -10,10 +10,8 @@ module Retroactive
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
     def as_of!(time)
-      if time <= _current_time
-        logged_changes.between(time, _current_time).reverse_chronological.each(&:unapply!)
-      else
-        logged_changes.between(_current_time, time).chronological.each(&:apply!)
+      as_of(time).attributes.each do |attr_name, transformed_value|
+        self[attr_name] = transformed_value
       end
 
       @frozen_at = time
@@ -21,7 +19,13 @@ module Retroactive
 
     def as_of(time)
       clone.tap do |cloned|
-        cloned.as_of!(time)
+        if time <= _current_time
+          logged_changes.between(time, _current_time).reverse_chronological.each { |lc| lc.unapply_to!(cloned) }
+        else
+          logged_changes.between(_current_time, time).chronological.each { |lc| lc.apply_to!(cloned) }
+        end
+
+        cloned.instance_variable_set(:@frozen_at, time)
       end
     end
 

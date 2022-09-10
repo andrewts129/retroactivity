@@ -10,23 +10,23 @@ module Retroactivity
     scope :chronological, -> { order(:as_of => :asc) }
     scope :reverse_chronological, -> { order(:as_of => :desc) }
 
-    def apply!
+    def apply_to!(obj)
       data.each do |attr, change|
         previous_value, new_value = change
 
-        raise CannotApplyError unless loggable[attr] == previous_value
+        raise CannotApplyError unless obj[attr] == previous_value
 
-        loggable[attr] = new_value
+        obj[attr] = new_value
       end
     end
 
-    def unapply!
+    def unapply_to!(obj)
       data.each do |attr, change|
         previous_value, new_value = change
 
-        raise CannotApplyError unless loggable[attr] == new_value
+        raise CannotApplyError unless obj[attr] == new_value
 
-        loggable[attr] = previous_value
+        obj[attr] = previous_value
       end
     end
   end
