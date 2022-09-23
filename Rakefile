@@ -25,6 +25,13 @@ task :setup do
         end
 
         add_index :logged_changes, [:loggable_type, :loggable_id, :as_of], :order => { :as_of => :desc }
+
+        create_table :logged_change_items do |t|
+          t.references :logged_change, :null => false, :index => true
+          t.string :column_name, :null => false
+          t.json :old_value, :null => true
+          t.json :new_value, :null => false
+        end
       end
     end
   MIGRATION

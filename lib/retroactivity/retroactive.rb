@@ -9,6 +9,23 @@ module Retroactive
 
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
+    scope :as_of, ->(time) do
+      changes_to_apply = 
+        select("changes_to_apply.*")
+          .from(
+            select("logged_changes.loggable_type, logged_changes.loggable_id", "logged_change_items.old_value AS value", "ROW_NUMBER() OVER (PARTITION BY logged_changes.loggable_id ORDER BY logged_changes.as_of ASC) ranked_order")
+              .from("logged_changes")
+              .joins("logged_change_items")
+              .where("logged_changes.as_of > ?", time),
+            "changes_to_apply"
+          ).where("changes_to_apply.ranked_order = 1")
+
+      puts changes_to_apply.to_sql
+      sub_select = nil
+      
+      from(sub_select, table_name)
+    end
+
     def as_of!(time)
       as_of(time).attributes.each do |attr_name, transformed_value|
         self[attr_name] = transformed_value
@@ -59,7 +76,14 @@ module Retroactive
     def _log_save_and_apply_cache!
       logged_changes.create!(
         :data => saved_changes,
-        :as_of => _current_time
+        :as_of => _current_time,
+        :logged_change_items_attributes => saved_changes.map do |column_name, change|
+          {
+            :column_name => column_name,
+            :old_value => change[0],
+            :new_value => change[1]
+          }
+        end
       )
 
       @attrs_to_apply_post_save.each do |attr_name, value|
