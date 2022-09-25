@@ -9,46 +9,40 @@ module Retroactive
 
     has_many :logged_changes, :as => :loggable, :class_name => "Retroactivity::LoggedChange"
 
-    scope :as_of, ->(time) do
-      changes_to_apply = 
-        select("changes_to_apply.*")
-          .from(
-            select("logged_changes.loggable_type, logged_changes.loggable_id", "logged_change_items.old_value AS value", "ROW_NUMBER() OVER (PARTITION BY logged_changes.loggable_id ORDER BY logged_changes.as_of ASC) ranked_order")
-              .from("logged_changes")
-              .joins("logged_change_items")
-              .where("logged_changes.as_of > ?", time),
-            "changes_to_apply"
-          ).where("changes_to_apply.ranked_order = 1")
+    scope :as_of, lambda { |time|
+      changes_to_apply =
+        select("*").from(
+          Retroactivity::LoggedChange
+            .joins(:logged_change_items)
+            .select("logged_changes.loggable_type, logged_changes.loggable_id", "logged_change_items.column_name", "logged_change_items.old_value AS value", "ROW_NUMBER() OVER (PARTITION BY logged_changes.loggable_id, logged_change_items.column_name ORDER BY logged_changes.as_of ASC) ranked_order")
+            .where("logged_changes.as_of > ?", time)
+        )
+          .where("ranked_order = 1")
 
-      puts changes_to_apply.to_sql
-      sub_select = nil
-      
-      from(sub_select, table_name)
-    end
+      subquery = select(
+        column_names.map do |column_name|
+          "CASE WHEN (SELECT EXISTS (SELECT 1 FROM (#{changes_to_apply.to_sql}) cta WHERE cta.loggable_type = '#{name}' AND cta.loggable_id = id AND cta.column_name = '#{column_name}')) THEN (SELECT json_extract(cta.value, '$') FROM (#{changes_to_apply.to_sql}) cta WHERE cta.loggable_type = '#{name}' AND cta.loggable_id = id AND cta.column_name = '#{column_name}' LIMIT 1) ELSE #{column_name} END AS #{column_name}"
+        end
+      )
+
+      from(subquery, table_name)
+    }
 
     def as_of!(time)
       as_of(time).attributes.each do |attr_name, transformed_value|
         self[attr_name] = transformed_value
       end
-
-      @frozen_at = time
     end
 
     def as_of(time)
-      clone.tap do |cloned|
-        if time <= _current_time
-          logged_changes.between(time, _current_time).reverse_chronological.each { |lc| lc.unapply_to!(cloned) }
-        else
-          logged_changes.between(_current_time, time).chronological.each { |lc| lc.apply_to!(cloned) }
-        end
-
-        cloned.instance_variable_set(:@frozen_at, time)
-      end
+      self.class.as_of(time).find_by(:id => id) || self.class.new
     end
 
     private
 
     def _current_time
+      return Time.now unless changed?
+
       @frozen_at || Time.now
     end
 
@@ -66,7 +60,7 @@ module Retroactive
       real = Time.now
       raise Retroactivity::CannotMakeFutureDatedUpdatesError if @frozen_at > real
 
-      logged_changes.between(@frozen_at, real).flat_map { |logged_change| logged_change.data.keys }.uniq
+      logged_changes.between(@frozen_at, real).flat_map { |logged_change| logged_change.logged_change_items.map(&:column_name) }.uniq
     end
 
     def _undo_pending_change!(attr_name)
@@ -75,7 +69,6 @@ module Retroactive
 
     def _log_save_and_apply_cache!
       logged_changes.create!(
-        :data => saved_changes,
         :as_of => _current_time,
         :logged_change_items_attributes => saved_changes.map do |column_name, change|
           {

@@ -25,13 +25,13 @@ RSpec.describe Retroactive do
   end
 
   let(:now) { Time.now }
-  let(:instance) { Timecop.freeze(now - 5.days) { test_klass.create!(:foo => "bar") } }
+  let!(:instance) { Timecop.freeze(now - 5.days) { test_klass.create!(:foo => "bar") } }
 
   describe ".as_of" do
-    subject(:state_as_of) { test_klass.as_of(as_of_time).all }
+    subject(:state_as_of) { test_klass.as_of(as_of_time) }
 
     let(:as_of_time) { now - 3.days }
-    let(:instance2) { Timecop.freeze(now - 8.days) { test_klass.create!(:foo => "baz", :bar => 42) } }
+    let!(:instance2) { Timecop.freeze(now - 8.days) { test_klass.create!(:foo => "baz", :bar => 42) } }
 
     before do
       Timecop.freeze(now - 4.day) { instance.update!(:foo => "bar2") }
@@ -41,11 +41,10 @@ RSpec.describe Retroactive do
       Timecop.freeze(now - 5.days) { instance2.update!(:foo => "baz2") }
     end
 
-
     it "returns a view of the database as it was at that time" do
-      expect(state_as_of.to_a.map(&:attributes)).to contain_exactly(
-        { :id => instance.id, :foo => "bar2", :bar => nil },
-        { :id => instance2.id, :foo => "baz2", :bar => 42 }
+      expect(state_as_of.map(&:attributes)).to contain_exactly(
+        { "id" => instance.id, "foo" => "bar2", "bar" => nil },
+        { "id" => instance2.id, "foo" => "baz2", "bar" => 42 }
       )
     end
   end
